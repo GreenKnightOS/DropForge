@@ -129,6 +129,12 @@ func _on_build_scene_pressed() -> void:
         status_label.text = "Status: SELECT A PNG"
         return
 
+    var source_image := Image.load_from_file(selected_png_path)
+
+    if source_image == null or source_image.is_empty():
+        _show_build_error("DropForge could not reload the selected PNG.")
+        return
+
     var asset_name := (
         selected_png_path
         .get_file()
@@ -182,6 +188,73 @@ func _on_build_scene_pressed() -> void:
         )
         return
 
+    var bitmap_rect := Rect2i(
+        Vector2i.ZERO,
+        source_image.get_size()
+    )
+
+    var bitmap := BitMap.new()
+    bitmap.create_from_image_alpha(source_image, 0.1)
+
+    # Close tiny gaps and remove thin alpha fragments.
+    bitmap.grow_mask(2, bitmap_rect)
+    bitmap.grow_mask(-2, bitmap_rect)
+
+    var polygons := bitmap.opaque_to_polygons(
+        bitmap_rect,
+        4.0
+    )
+
+    var image_area := float(
+        source_image.get_width() * source_image.get_height()
+    )
+
+    var minimum_polygon_area := image_area * 0.0025
+
+    var image_center := Vector2(
+        source_image.get_width(),
+        source_image.get_height()
+    ) / 2.0
+
+    var collision_nodes_text := ""
+    var collision_count := 0
+
+    for polygon in polygons:
+        if polygon.size() < 3:
+            continue
+
+        if _polygon_area(polygon) < minimum_polygon_area:
+            continue
+
+        var point_values := PackedStringArray()
+
+        for point in polygon:
+            var centered_point: Vector2 = point - image_center
+            point_values.append(str(snappedf(centered_point.x, 0.01)))
+            point_values.append(str(snappedf(centered_point.y, 0.01)))
+
+        collision_count += 1
+
+        var collision_name := "CollisionPolygon2D"
+
+        if collision_count > 1:
+            collision_name += str(collision_count)
+
+        collision_nodes_text += (
+            "\n[node name=\""
+            + collision_name
+            + "\" type=\"CollisionPolygon2D\" parent=\"StaticBody2D\"]\n"
+            + "polygon = PackedVector2Array("
+            + ", ".join(point_values)
+            + ")\n"
+        )
+
+    if collision_count == 0:
+        _show_build_error(
+            "DropForge found no opaque pixels for collision generation."
+        )
+        return
+
     var scene_text := (
         "[gd_scene load_steps=2 format=3]\n\n"
         + "[ext_resource type=\"Texture2D\" path=\""
@@ -191,7 +264,9 @@ func _on_build_scene_pressed() -> void:
         + root_name
         + "\" type=\"Node2D\"]\n\n"
         + "[node name=\"Sprite2D\" type=\"Sprite2D\" parent=\".\"]\n"
-        + "texture = ExtResource(\"1_texture\")\n"
+        + "texture = ExtResource(\"1_texture\")\n\n"
+        + "[node name=\"StaticBody2D\" type=\"StaticBody2D\" parent=\".\"]\n"
+        + collision_nodes_text
     )
 
     var scene_file := FileAccess.open(scene_abs_path, FileAccess.WRITE)
@@ -208,10 +283,31 @@ func _on_build_scene_pressed() -> void:
 
     EditorInterface.get_resource_filesystem().scan()
 
-    status_label.text = "Status: SCENE BUILT"
+    status_label.text = (
+        "Status: SCENE BUILT (%d COLLIDERS)"
+        % collision_count
+    )
 
     print("DropForge copied texture: ", texture_res_path)
     print("DropForge built scene: ", scene_res_path)
+    print("DropForge collision polygons: ", collision_count)
+
+
+func _polygon_area(polygon: PackedVector2Array) -> float:
+    var area := 0.0
+
+    for index in range(polygon.size()):
+        var current_point: Vector2 = polygon[index]
+        var following_point: Vector2 = polygon[
+            (index + 1) % polygon.size()
+        ]
+
+        area += (
+            current_point.x * following_point.y
+            - following_point.x * current_point.y
+        )
+
+    return absf(area) * 0.5
 
 
 func _show_build_error(message: String) -> void:
