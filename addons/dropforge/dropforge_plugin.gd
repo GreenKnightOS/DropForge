@@ -278,10 +278,7 @@ func _on_build_scene_pressed() -> void:
             footprint_depth_spinbox.value
         ) / 2.0
 
-        var footprint_center_y := (
-            float(source_image.get_height()) / 2.0
-            - half_depth
-        )
+        var footprint_center_y := -half_depth
 
         var footprint_polygon := PackedVector2Array([
             Vector2(
@@ -449,6 +446,24 @@ func _on_build_scene_pressed() -> void:
             + interaction_nodes_text
         )
 
+    var sprite_position_text := ""
+
+    if use_footprint:
+        var sprite_y := snappedf(
+            -float(source_image.get_height()) / 2.0,
+            0.01
+        )
+
+        sprite_position_text = (
+            "position = Vector2(0, "
+            + str(sprite_y)
+            + ")\n"
+        )
+
+        print("DropForge anchor mode: Bottom Center")
+    else:
+        print("DropForge anchor mode: Center")
+
     var scene_text := (
         "[gd_scene load_steps=2 format=3]\n\n"
         + "[ext_resource type=\"Texture2D\" path=\""
@@ -458,6 +473,7 @@ func _on_build_scene_pressed() -> void:
         + root_name
         + "\" type=\"Node2D\"]\n\n"
         + "[node name=\"Sprite2D\" type=\"Sprite2D\" parent=\".\"]\n"
+        + sprite_position_text
         + "texture = ExtResource(\"1_texture\")\n\n"
         + "[node name=\"StaticBody2D\" type=\"StaticBody2D\" parent=\".\"]\n"
         + collision_nodes_text
