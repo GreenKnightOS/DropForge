@@ -247,6 +247,16 @@ func _on_build_scene_pressed() -> void:
         .validate_filename()
     )
 
+    var dimension_suffix_regex := RegEx.create_from_string(
+        "(\\d+)x_(\\d+)"
+    )
+
+    asset_name = dimension_suffix_regex.sub(
+        asset_name,
+        "$1x$2",
+        true
+    )
+
     if asset_name.is_empty():
         asset_name = "dropforge_asset"
 
