@@ -264,91 +264,179 @@ func _on_build_scene_pressed() -> void:
         )
         return
 
-    var bitmap_rect := Rect2i(
-        Vector2i.ZERO,
-        source_image.get_size()
-    )
-
-    var bitmap := BitMap.new()
-    bitmap.create_from_image_alpha(source_image, 0.1)
-
-    # Close tiny gaps and remove thin alpha fragments.
-    bitmap.grow_mask(2, bitmap_rect)
-    bitmap.grow_mask(-2, bitmap_rect)
-
-    var polygons := bitmap.opaque_to_polygons(
-        bitmap_rect,
-        4.0
-    )
-
-    var image_area := float(
-        source_image.get_width() * source_image.get_height()
-    )
-
-    var minimum_polygon_area := image_area * 0.0025
-
-    var image_center := Vector2(
-        source_image.get_width(),
-        source_image.get_height()
-    ) / 2.0
-
     var collision_nodes_text := ""
     var interaction_nodes_text := ""
     var collision_count := 0
+    var use_footprint := collision_mode_option.selected == 1
 
-    for polygon in polygons:
-        if polygon.size() < 3:
-            continue
+    if use_footprint:
+        var half_width := float(
+            footprint_width_spinbox.value
+        ) / 2.0
 
-        if _polygon_area(polygon) < minimum_polygon_area:
-            continue
+        var half_depth := float(
+            footprint_depth_spinbox.value
+        ) / 2.0
 
-        var point_values := PackedStringArray()
+        var footprint_center_y := (
+            float(source_image.get_height()) / 2.0
+            - half_depth
+        )
 
-        for point in polygon:
-            var centered_point: Vector2 = point - image_center
-            point_values.append(str(snappedf(centered_point.x, 0.01)))
-            point_values.append(str(snappedf(centered_point.y, 0.01)))
+        var footprint_polygon := PackedVector2Array([
+            Vector2(
+                0.0,
+                footprint_center_y - half_depth
+            ),
+            Vector2(
+                half_width,
+                footprint_center_y
+            ),
+            Vector2(
+                0.0,
+                footprint_center_y + half_depth
+            ),
+            Vector2(
+                -half_width,
+                footprint_center_y
+            ),
+        ])
 
-        collision_count += 1
+        var footprint_point_values := PackedStringArray()
 
-        var collision_name := "CollisionPolygon2D"
+        for point in footprint_polygon:
+            footprint_point_values.append(
+                str(snappedf(point.x, 0.01))
+            )
+            footprint_point_values.append(
+                str(snappedf(point.y, 0.01))
+            )
 
-        if collision_count > 1:
-            collision_name += str(collision_count)
-
-        collision_nodes_text += (
-            "\n[node name=\""
-            + collision_name
-            + "\" type=\"CollisionPolygon2D\" parent=\"StaticBody2D\"]\n"
+        collision_nodes_text = (
+            "\n[node name=\"CollisionPolygon2D\" "
+            + "type=\"CollisionPolygon2D\" "
+            + "parent=\"StaticBody2D\"]\n"
             + "polygon = PackedVector2Array("
-            + ", ".join(point_values)
+            + ", ".join(footprint_point_values)
             + ")\n"
         )
 
+        collision_count = 1
+
         if interaction_checkbox.button_pressed:
-            var interaction_collision_name := (
-                "InteractionCollisionPolygon2D"
+            interaction_nodes_text = (
+                "\n[node name=\"InteractionCollisionPolygon2D\" "
+                + "type=\"CollisionPolygon2D\" "
+                + "parent=\"InteractionArea\"]\n"
+                + "polygon = PackedVector2Array("
+                + ", ".join(footprint_point_values)
+                + ")\n"
             )
 
-            if collision_count > 1:
-                interaction_collision_name += str(collision_count)
+    else:
+        var bitmap_rect := Rect2i(
+            Vector2i.ZERO,
+            source_image.get_size()
+        )
 
-            interaction_nodes_text += (
+        var bitmap := BitMap.new()
+        bitmap.create_from_image_alpha(source_image, 0.1)
+
+        # Close tiny gaps and remove thin alpha fragments.
+        bitmap.grow_mask(2, bitmap_rect)
+        bitmap.grow_mask(-2, bitmap_rect)
+
+        var polygons := bitmap.opaque_to_polygons(
+            bitmap_rect,
+            4.0
+        )
+
+        var image_area := float(
+            source_image.get_width()
+            * source_image.get_height()
+        )
+
+        var minimum_polygon_area := image_area * 0.0025
+
+        var image_center := Vector2(
+            source_image.get_width(),
+            source_image.get_height()
+        ) / 2.0
+
+        for polygon in polygons:
+            if polygon.size() < 3:
+                continue
+
+            if _polygon_area(polygon) < minimum_polygon_area:
+                continue
+
+            var point_values := PackedStringArray()
+
+            for point in polygon:
+                var centered_point: Vector2 = (
+                    point - image_center
+                )
+
+                point_values.append(
+                    str(snappedf(centered_point.x, 0.01))
+                )
+                point_values.append(
+                    str(snappedf(centered_point.y, 0.01))
+                )
+
+            collision_count += 1
+
+            var collision_name := "CollisionPolygon2D"
+
+            if collision_count > 1:
+                collision_name += str(collision_count)
+
+            collision_nodes_text += (
                 "\n[node name=\""
-                + interaction_collision_name
+                + collision_name
                 + "\" type=\"CollisionPolygon2D\" "
-                + "parent=\"InteractionArea\"]\n"
+                + "parent=\"StaticBody2D\"]\n"
                 + "polygon = PackedVector2Array("
                 + ", ".join(point_values)
                 + ")\n"
             )
 
+            if interaction_checkbox.button_pressed:
+                var interaction_collision_name := (
+                    "InteractionCollisionPolygon2D"
+                )
+
+                if collision_count > 1:
+                    interaction_collision_name += str(
+                        collision_count
+                    )
+
+                interaction_nodes_text += (
+                    "\n[node name=\""
+                    + interaction_collision_name
+                    + "\" type=\"CollisionPolygon2D\" "
+                    + "parent=\"InteractionArea\"]\n"
+                    + "polygon = PackedVector2Array("
+                    + ", ".join(point_values)
+                    + ")\n"
+                )
+
     if collision_count == 0:
         _show_build_error(
-            "DropForge found no opaque pixels for collision generation."
+            "DropForge could not generate collision."
         )
         return
+
+    var collision_mode_name := (
+        "Isometric Footprint"
+        if use_footprint
+        else "Alpha Outline"
+    )
+
+    print(
+        "DropForge generated collision mode: ",
+        collision_mode_name
+    )
 
     var interaction_area_text := ""
 
