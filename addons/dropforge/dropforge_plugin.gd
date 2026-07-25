@@ -9,6 +9,9 @@ var image_info_label: Label
 var status_label: Label
 var build_button: Button
 var interaction_checkbox: CheckBox
+var collision_mode_option: OptionButton
+var footprint_width_spinbox: SpinBox
+var footprint_depth_spinbox: SpinBox
 var selected_png_path: String = ""
 
 
@@ -56,6 +59,45 @@ func _enter_tree() -> void:
     )
     content.add_child(interaction_checkbox)
 
+    var collision_mode_label := Label.new()
+    collision_mode_label.text = "Collision Mode"
+    content.add_child(collision_mode_label)
+
+    collision_mode_option = OptionButton.new()
+    collision_mode_option.add_item("Alpha Outline")
+    collision_mode_option.add_item("Isometric Footprint")
+    collision_mode_option.select(0)
+    collision_mode_option.item_selected.connect(
+        _on_collision_mode_selected
+    )
+    content.add_child(collision_mode_option)
+
+    var footprint_width_label := Label.new()
+    footprint_width_label.text = "Footprint Width"
+    content.add_child(footprint_width_label)
+
+    footprint_width_spinbox = SpinBox.new()
+    footprint_width_spinbox.min_value = 4.0
+    footprint_width_spinbox.max_value = 512.0
+    footprint_width_spinbox.step = 1.0
+    footprint_width_spinbox.value = 64.0
+    footprint_width_spinbox.suffix = " px"
+    footprint_width_spinbox.editable = false
+    content.add_child(footprint_width_spinbox)
+
+    var footprint_depth_label := Label.new()
+    footprint_depth_label.text = "Footprint Depth"
+    content.add_child(footprint_depth_label)
+
+    footprint_depth_spinbox = SpinBox.new()
+    footprint_depth_spinbox.min_value = 4.0
+    footprint_depth_spinbox.max_value = 256.0
+    footprint_depth_spinbox.step = 1.0
+    footprint_depth_spinbox.value = 24.0
+    footprint_depth_spinbox.suffix = " px"
+    footprint_depth_spinbox.editable = false
+    content.add_child(footprint_depth_spinbox)
+
     build_button = Button.new()
     build_button.text = "Build Static Scene"
     build_button.disabled = true
@@ -94,6 +136,9 @@ func _exit_tree() -> void:
     status_label = null
     build_button = null
     interaction_checkbox = null
+    collision_mode_option = null
+    footprint_width_spinbox = null
+    footprint_depth_spinbox = null
     selected_png_path = ""
 
     print("DropForge disabled")
@@ -135,6 +180,20 @@ func _on_png_selected(path: String) -> void:
         "DropForge validated: %s | %d x %d px | transparency: %s"
         % [path, size.x, size.y, transparency_text]
     )
+
+
+func _on_collision_mode_selected(index: int) -> void:
+    var use_footprint := index == 1
+
+    footprint_width_spinbox.editable = use_footprint
+    footprint_depth_spinbox.editable = use_footprint
+
+    var mode_name := "Alpha Outline"
+
+    if use_footprint:
+        mode_name = "Isometric Footprint"
+
+    print("DropForge collision mode: ", mode_name)
 
 
 func _on_interaction_area_toggled(is_enabled: bool) -> void:
