@@ -12,6 +12,7 @@ var interaction_checkbox: CheckBox
 var collision_mode_option: OptionButton
 var footprint_width_spinbox: SpinBox
 var footprint_depth_spinbox: SpinBox
+var interaction_padding_spinbox: SpinBox
 var selected_png_path: String = ""
 
 
@@ -98,6 +99,22 @@ func _enter_tree() -> void:
     footprint_depth_spinbox.editable = false
     content.add_child(footprint_depth_spinbox)
 
+    var interaction_padding_label := Label.new()
+    interaction_padding_label.text = "Interaction Padding"
+    content.add_child(interaction_padding_label)
+
+    interaction_padding_spinbox = SpinBox.new()
+    interaction_padding_spinbox.min_value = 0.0
+    interaction_padding_spinbox.max_value = 128.0
+    interaction_padding_spinbox.step = 1.0
+    interaction_padding_spinbox.value = 12.0
+    interaction_padding_spinbox.suffix = " px"
+    interaction_padding_spinbox.editable = false
+    interaction_padding_spinbox.tooltip_text = (
+        "Extra reach added around an isometric footprint."
+    )
+    content.add_child(interaction_padding_spinbox)
+
     build_button = Button.new()
     build_button.text = "Build Static Scene"
     build_button.disabled = true
@@ -139,6 +156,7 @@ func _exit_tree() -> void:
     collision_mode_option = null
     footprint_width_spinbox = null
     footprint_depth_spinbox = null
+    interaction_padding_spinbox = null
     selected_png_path = ""
 
     print("DropForge disabled")
@@ -187,6 +205,10 @@ func _on_collision_mode_selected(index: int) -> void:
 
     footprint_width_spinbox.editable = use_footprint
     footprint_depth_spinbox.editable = use_footprint
+    interaction_padding_spinbox.editable = (
+        interaction_checkbox.button_pressed
+        and use_footprint
+    )
 
     var mode_name := "Alpha Outline"
 
@@ -197,6 +219,12 @@ func _on_collision_mode_selected(index: int) -> void:
 
 
 func _on_interaction_area_toggled(is_enabled: bool) -> void:
+    var use_footprint := collision_mode_option.selected == 1
+
+    interaction_padding_spinbox.editable = (
+        is_enabled and use_footprint
+    )
+
     print("DropForge interaction area enabled: ", is_enabled)
 
 
@@ -321,13 +349,76 @@ func _on_build_scene_pressed() -> void:
         collision_count = 1
 
         if interaction_checkbox.button_pressed:
+            var interaction_padding := float(
+                interaction_padding_spinbox.value
+            )
+
+            var interaction_half_width := (
+                half_width + interaction_padding
+            )
+
+            var interaction_half_depth := (
+                half_depth + interaction_padding
+            )
+
+            var interaction_polygon := PackedVector2Array([
+                Vector2(
+                    0.0,
+                    footprint_center_y
+                    - interaction_half_depth
+                ),
+                Vector2(
+                    interaction_half_width,
+                    footprint_center_y
+                ),
+                Vector2(
+                    0.0,
+                    footprint_center_y
+                    + interaction_half_depth
+                ),
+                Vector2(
+                    -interaction_half_width,
+                    footprint_center_y
+                ),
+            ])
+
+            var interaction_point_values := (
+                PackedStringArray()
+            )
+
+            for point in interaction_polygon:
+                interaction_point_values.append(
+                    str(snappedf(point.x, 0.01))
+                )
+                interaction_point_values.append(
+                    str(snappedf(point.y, 0.01))
+                )
+
             interaction_nodes_text = (
                 "\n[node name=\"InteractionCollisionPolygon2D\" "
                 + "type=\"CollisionPolygon2D\" "
                 + "parent=\"InteractionArea\"]\n"
                 + "polygon = PackedVector2Array("
-                + ", ".join(footprint_point_values)
+                + ", ".join(interaction_point_values)
                 + ")\n"
+            )
+
+            var interaction_width := (
+                footprint_width_spinbox.value
+                + interaction_padding * 2.0
+            )
+
+            var interaction_depth := (
+                footprint_depth_spinbox.value
+                + interaction_padding * 2.0
+            )
+
+            print(
+                "DropForge interaction footprint: %d x %d px"
+                % [
+                    int(interaction_width),
+                    int(interaction_depth)
+                ]
             )
 
     else:
