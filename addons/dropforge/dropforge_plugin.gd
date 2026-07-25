@@ -326,7 +326,7 @@ func _on_build_scene_pressed() -> void:
     var root_name := asset_name.to_pascal_case()
 
     var assets_res_dir := "res://dropforge_output/assets"
-    var scenes_res_dir := "res://dropforge_output/scenes"
+    var scenes_res_dir := selected_scene_output_dir
 
     var localized_source_path := ProjectSettings.localize_path(
         selected_png_path
