@@ -8,6 +8,7 @@ var selected_file_label: Label
 var image_info_label: Label
 var status_label: Label
 var build_button: Button
+var interaction_checkbox: CheckBox
 var selected_png_path: String = ""
 
 
@@ -43,6 +44,17 @@ func _enter_tree() -> void:
     image_info_label = Label.new()
     image_info_label.text = "Dimensions: pending\nTransparency: pending"
     content.add_child(image_info_label)
+
+    interaction_checkbox = CheckBox.new()
+    interaction_checkbox.text = "Add interaction area"
+    interaction_checkbox.button_pressed = false
+    interaction_checkbox.tooltip_text = (
+        "Generate an Area2D using the asset outline."
+    )
+    interaction_checkbox.toggled.connect(
+        _on_interaction_area_toggled
+    )
+    content.add_child(interaction_checkbox)
 
     build_button = Button.new()
     build_button.text = "Build Static Scene"
@@ -81,6 +93,7 @@ func _exit_tree() -> void:
     image_info_label = null
     status_label = null
     build_button = null
+    interaction_checkbox = null
     selected_png_path = ""
 
     print("DropForge disabled")
@@ -122,6 +135,10 @@ func _on_png_selected(path: String) -> void:
         "DropForge validated: %s | %d x %d px | transparency: %s"
         % [path, size.x, size.y, transparency_text]
     )
+
+
+func _on_interaction_area_toggled(is_enabled: bool) -> void:
+    print("DropForge interaction area enabled: ", is_enabled)
 
 
 func _on_build_scene_pressed() -> void:
@@ -217,6 +234,7 @@ func _on_build_scene_pressed() -> void:
     ) / 2.0
 
     var collision_nodes_text := ""
+    var interaction_nodes_text := ""
     var collision_count := 0
 
     for polygon in polygons:
@@ -249,11 +267,40 @@ func _on_build_scene_pressed() -> void:
             + ")\n"
         )
 
+        if interaction_checkbox.button_pressed:
+            var interaction_collision_name := (
+                "InteractionCollisionPolygon2D"
+            )
+
+            if collision_count > 1:
+                interaction_collision_name += str(collision_count)
+
+            interaction_nodes_text += (
+                "\n[node name=\""
+                + interaction_collision_name
+                + "\" type=\"CollisionPolygon2D\" "
+                + "parent=\"InteractionArea\"]\n"
+                + "polygon = PackedVector2Array("
+                + ", ".join(point_values)
+                + ")\n"
+            )
+
     if collision_count == 0:
         _show_build_error(
             "DropForge found no opaque pixels for collision generation."
         )
         return
+
+    var interaction_area_text := ""
+
+    if interaction_checkbox.button_pressed:
+        interaction_area_text = (
+            "\n[node name=\"InteractionArea\" "
+            + "type=\"Area2D\" parent=\".\"]\n"
+            + "collision_layer = 0\n"
+            + "collision_mask = 1\n"
+            + interaction_nodes_text
+        )
 
     var scene_text := (
         "[gd_scene load_steps=2 format=3]\n\n"
@@ -267,6 +314,7 @@ func _on_build_scene_pressed() -> void:
         + "texture = ExtResource(\"1_texture\")\n\n"
         + "[node name=\"StaticBody2D\" type=\"StaticBody2D\" parent=\".\"]\n"
         + collision_nodes_text
+        + interaction_area_text
     )
 
     var scene_file := FileAccess.open(scene_abs_path, FileAccess.WRITE)

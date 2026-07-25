@@ -10,6 +10,7 @@ DropForge is a Godot 4 editor plugin that converts external PNG artwork into rea
 - Copy assets into the Godot project
 - Generate a Node2D scene with Sprite2D
 - Generate simplified alpha-based collision
+- Optionally generate an Area2D interaction region
 - Create a StaticBody2D with CollisionPolygon2D
 - Use safe Godot resource paths and filenames
 
@@ -54,10 +55,10 @@ Copy the `addons/dropforge` folder into a Godot 4 project, then enable DropForge
 - One PNG at a time
 - Existing generated files are overwritten
 - No animation or sprite-sheet support
-- No interaction-area generation yet
+- Interaction areas currently reuse the asset outline
 
 ## Development Status
 
-Version 0.1 MVP is under active development.
+Version 0.2 is under active development.
 
 Tested with Godot 4.7.
