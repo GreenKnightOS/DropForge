@@ -4,6 +4,8 @@ extends EditorPlugin
 
 var dropforge_dock: EditorDock
 var png_dialog: EditorFileDialog
+var output_dir_dialog: EditorFileDialog
+var output_dir_label: Label
 var selected_file_label: Label
 var image_info_label: Label
 var status_label: Label
@@ -14,6 +16,7 @@ var footprint_width_spinbox: SpinBox
 var footprint_depth_spinbox: SpinBox
 var interaction_padding_spinbox: SpinBox
 var selected_png_path: String = ""
+var selected_scene_output_dir: String = "res://dropforge_output/scenes"
 
 
 func _enter_tree() -> void:
@@ -48,6 +51,25 @@ func _enter_tree() -> void:
     image_info_label = Label.new()
     image_info_label.text = "Dimensions: pending\nTransparency: pending"
     content.add_child(image_info_label)
+
+    var output_dir_heading := Label.new()
+    output_dir_heading.text = "Scene Output Folder"
+    content.add_child(output_dir_heading)
+
+    var output_dir_button := Button.new()
+    output_dir_button.text = "Choose Output Folder"
+    output_dir_button.pressed.connect(
+        _on_select_output_dir_pressed
+    )
+    content.add_child(output_dir_button)
+
+    output_dir_label = Label.new()
+    output_dir_label.text = selected_scene_output_dir
+    output_dir_label.tooltip_text = selected_scene_output_dir
+    output_dir_label.autowrap_mode = (
+        TextServer.AUTOWRAP_WORD_SMART
+    )
+    content.add_child(output_dir_label)
 
     interaction_checkbox = CheckBox.new()
     interaction_checkbox.text = "Add interaction area"
@@ -135,6 +157,14 @@ func _enter_tree() -> void:
     png_dialog.file_selected.connect(_on_png_selected)
     add_child(png_dialog)
 
+    output_dir_dialog = EditorFileDialog.new()
+    output_dir_dialog.access = FileDialog.ACCESS_RESOURCES
+    output_dir_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+    output_dir_dialog.dir_selected.connect(
+        _on_output_dir_selected
+    )
+    add_child(output_dir_dialog)
+
     print("DropForge enabled")
 
 
@@ -142,14 +172,19 @@ func _exit_tree() -> void:
     if is_instance_valid(png_dialog):
         png_dialog.queue_free()
 
+    if is_instance_valid(output_dir_dialog):
+        output_dir_dialog.queue_free()
+
     if is_instance_valid(dropforge_dock):
         remove_dock(dropforge_dock)
         dropforge_dock.queue_free()
 
     png_dialog = null
+    output_dir_dialog = null
     dropforge_dock = null
     selected_file_label = null
     image_info_label = null
+    output_dir_label = null
     status_label = null
     build_button = null
     interaction_checkbox = null
@@ -158,8 +193,36 @@ func _exit_tree() -> void:
     footprint_depth_spinbox = null
     interaction_padding_spinbox = null
     selected_png_path = ""
+    selected_scene_output_dir = "res://dropforge_output/scenes"
 
     print("DropForge disabled")
+
+
+func _on_select_output_dir_pressed() -> void:
+    output_dir_dialog.current_dir = selected_scene_output_dir
+    output_dir_dialog.popup_centered_clamped(
+        Vector2i(900, 600)
+    )
+
+
+func _on_output_dir_selected(path: String) -> void:
+    var localized_path := ProjectSettings.localize_path(path)
+
+    if not localized_path.begins_with("res://"):
+        push_error(
+            "DropForge output folder must be inside the project."
+        )
+        return
+
+    selected_scene_output_dir = localized_path.trim_suffix("/")
+
+    output_dir_label.text = selected_scene_output_dir
+    output_dir_label.tooltip_text = selected_scene_output_dir
+
+    print(
+        "DropForge scene output folder: ",
+        selected_scene_output_dir
+    )
 
 
 func _on_select_png_pressed() -> void:
