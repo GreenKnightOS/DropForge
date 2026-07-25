@@ -265,18 +265,74 @@ func _on_build_scene_pressed() -> void:
     var assets_res_dir := "res://dropforge_output/assets"
     var scenes_res_dir := "res://dropforge_output/scenes"
 
-    var assets_abs_dir := ProjectSettings.globalize_path(assets_res_dir)
-    var scenes_abs_dir := ProjectSettings.globalize_path(scenes_res_dir)
+    var localized_source_path := ProjectSettings.localize_path(
+        selected_png_path
+    )
 
-    var assets_dir_error := DirAccess.make_dir_recursive_absolute(assets_abs_dir)
-    if assets_dir_error != OK:
-        _show_build_error(
-            "DropForge could not create assets directory. Error: %d"
-            % assets_dir_error
+    var source_is_in_project := localized_source_path.begins_with(
+        "res://"
+    )
+
+    var texture_res_path := localized_source_path
+
+    if source_is_in_project:
+        print(
+            "DropForge reused project texture: ",
+            texture_res_path
         )
-        return
+    else:
+        var assets_abs_dir := ProjectSettings.globalize_path(
+            assets_res_dir
+        )
 
-    var scenes_dir_error := DirAccess.make_dir_recursive_absolute(scenes_abs_dir)
+        var assets_dir_error := (
+            DirAccess.make_dir_recursive_absolute(
+                assets_abs_dir
+            )
+        )
+
+        if assets_dir_error != OK:
+            _show_build_error(
+                "DropForge could not create assets directory. Error: %d"
+                % assets_dir_error
+            )
+            return
+
+        texture_res_path = assets_res_dir.path_join(
+            asset_name + ".png"
+        )
+
+        var texture_abs_path := ProjectSettings.globalize_path(
+            texture_res_path
+        )
+
+        var copy_error := DirAccess.copy_absolute(
+            selected_png_path,
+            texture_abs_path
+        )
+
+        if copy_error != OK:
+            _show_build_error(
+                "DropForge could not copy PNG. Error: %d"
+                % copy_error
+            )
+            return
+
+        print(
+            "DropForge copied external texture: ",
+            texture_res_path
+        )
+
+    var scenes_abs_dir := ProjectSettings.globalize_path(
+        scenes_res_dir
+    )
+
+    var scenes_dir_error := (
+        DirAccess.make_dir_recursive_absolute(
+            scenes_abs_dir
+        )
+    )
+
     if scenes_dir_error != OK:
         _show_build_error(
             "DropForge could not create scenes directory. Error: %d"
@@ -284,23 +340,13 @@ func _on_build_scene_pressed() -> void:
         )
         return
 
-    var texture_res_path := assets_res_dir.path_join(asset_name + ".png")
-    var scene_res_path := scenes_res_dir.path_join(asset_name + ".tscn")
-
-    var texture_abs_path := ProjectSettings.globalize_path(texture_res_path)
-    var scene_abs_path := ProjectSettings.globalize_path(scene_res_path)
-
-    var copy_error := DirAccess.copy_absolute(
-        selected_png_path,
-        texture_abs_path
+    var scene_res_path := scenes_res_dir.path_join(
+        asset_name + ".tscn"
     )
 
-    if copy_error != OK:
-        _show_build_error(
-            "DropForge could not copy PNG. Error: %d"
-            % copy_error
-        )
-        return
+    var scene_abs_path := ProjectSettings.globalize_path(
+        scene_res_path
+    )
 
     var collision_nodes_text := ""
     var interaction_nodes_text := ""
@@ -600,7 +646,7 @@ func _on_build_scene_pressed() -> void:
         % collision_count
     )
 
-    print("DropForge copied texture: ", texture_res_path)
+    print("DropForge texture resource: ", texture_res_path)
     print("DropForge built scene: ", scene_res_path)
     print("DropForge collision polygons: ", collision_count)
 
